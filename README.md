@@ -1,4 +1,4 @@
-# Sistema de alarme para 4 relés
+# Sistema de alarme para 4 relés (main_alarme.ino)
 
 ### Pinos utilizados e livres no arduino
 
