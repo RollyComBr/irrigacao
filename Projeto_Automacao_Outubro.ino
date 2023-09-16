@@ -1,3 +1,8 @@
+/*
+
+SISTEMA DE ALARMES UTILIZANDO O TIMEALARMS - UTILIZA MAIS MEMORIA E SÓ ATIVA NA HORA CERTA
+
+*/
 #include <Arduino.h>
 #include "RTClib.h"
 #include <SPI.h>
