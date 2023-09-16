@@ -6,10 +6,13 @@
 >TXD=6, RXD=7
 
 **74HC595:** 
->SH_CP=4, ST_CP=3, DS=2, CI=1
+>SH_CP=4, ST_CP=3, DS=2
 
 **Analógicos:** 
 >SDA = A4, SCL = A5
+
+**Pinos de Comunicação Livres** 
+>RX, TX
 
 **Pinos Digitais Livres:** 
 >5, 8, 9, 10, 11, 12, 13
