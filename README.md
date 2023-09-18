@@ -38,9 +38,9 @@ ___________________________________________________________
 
 ### Comando para alterar o status do alarme para ativar ou desativar:
 
-**Entrada=Status, definição=1(V ou F), relé=1(int de 1 a 4)**
+**Entrada=Status, alarme=1(int de 1 a 4), status=1(V ou F)**
 
->{"ent":"st","df":1,"r":1}
+>{"ent":"st","a":1,"s":1}
 
 ### Comando para receber os dados sem esperar de minuto a minuto:
 
