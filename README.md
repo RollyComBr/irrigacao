@@ -50,15 +50,15 @@ ___________________________________________________________
 
 ### Comando para atualizar a hora:
 
-**Entrada=Hora, Hora=17(inteiro 24hs), Minutos = 15(inteiro)**
+**Entrada=Hora, Hora=1695105003(Epoch & Unix Timestamp)**
 
->{"ent":"hr","h":17,"m":15}
+>{"ent":"hr","h":1695105003}
 
 ### Comando para atualizar a data:
 
 **Entrada=data, Dia=17(int), Mês=8(int), Ano=2023(int)**
 
->{"ent":"dt","d":17,"m":8,"a":2023}
+>{"ent":"dt","h":3,"m":31,"s":0,"d":17,"m":8,"a":2023}
 
 ### Comando para configurar o horário de ativação e desativação dos dispositivos:
 
