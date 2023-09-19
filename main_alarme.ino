@@ -45,8 +45,8 @@ byte novominuto = 0;
 //Variáveis Endereo EEPROM do alarme
 //Quantidade de alarmes que podem ser configurados
 #define quantAlarms 4
-//Reservando endereços EEPOROM
-int alarmeEEPROM1 = 0, alarmeEEPROM2 = 1, alarmeEEPROM3 = 2, alarmeEEPROM4 = 3, alarmeEEPROM5 = 4, alarmeEEPROM6 = 5, alarmeEEPROM7 = 6, alarmeEEPROM8 = 7;
+//Reservando endereços EEPROM
+int alarmeEEPROM1 = 0, alarmeEEPROM2 = 1, alarmeEEPROM3 = 2, alarmeEEPROM4 = 3;
 int HoraEEPROM_1A = 10, MinutoEEPROM_1A = 11, HoraEEPROM_1D = 12, MinutoEEPROM_1D = 13;
 int HoraEEPROM_2A = 14, MinutoEEPROM_2A = 15, HoraEEPROM_2D = 16, MinutoEEPROM_2D = 17;
 int HoraEEPROM_3A = 18, MinutoEEPROM_3A = 19, HoraEEPROM_3D = 20, MinutoEEPROM_3D = 21;
@@ -89,16 +89,14 @@ byte readEEPROM(unsigned int eeaddress) {
 int statusRele[quantAlarms] = { 100, 101, 102, 103 };
 int portas[] = { pinRele1, pinRele2, pinRele3, pinRele4 };
 //Declara as portas do Time e inicializa o DS3231
-void enviaDadosData(byte e_dia, byte e_mes, int e_ano) {
-  rtc.adjust(DateTime(e_ano, e_mes, e_dia, hora, minuto, segundo));
-}
-void enviaDadosHora(byte e_hora, byte e_minuto, byte e_segundo) {
-  rtc.adjust(DateTime(ano, mes, dia, e_hora, e_minuto, e_segundo));
+void enviaDadosHora(uint32_t epoch) {
+  rtc.adjust(DateTime(epoch));
 }
 //Funções para ativação dos Reles
-void alteraRele(int pinRele, int estado, int statusAlarme, int StatusRele) {
-  writeEEPROM(statusAlarme, 0);
-  writeEEPROM(StatusRele, estado);
+void alteraRele(int pinRele, int estado) {
+  writeEEPROM(pinRele, 0); //Status do alarme
+  writeEEPROM(statusRele[pinRele], estado); //Estado atual do rele
+  writeEEPROM(statusRele[pinRele]+50, estado); //index de comparador da função alarmar
   ciWrite(pinRele1, estado);
 }
 void pegaDadosRelogio() {
@@ -153,17 +151,17 @@ void enviaComando() {
   out["a3"] = readEEPROM(alarmeEEPROM3);
   out["a4"] = readEEPROM(alarmeEEPROM4);
 
-  out["1a"] = printDigit(readEEPROM(HoraEEPROM_1A)) + ":" + printDigit(readEEPROM(MinutoEEPROM_1A));
-  out["1d"] = printDigit(readEEPROM(HoraEEPROM_1D)) + ":" + printDigit(readEEPROM(MinutoEEPROM_1D));
+  out["h1"] = printDigit(readEEPROM(HoraEEPROM_1A)) + ":" + printDigit(readEEPROM(MinutoEEPROM_1A));
+  out["l1"] = printDigit(readEEPROM(HoraEEPROM_1D)) + ":" + printDigit(readEEPROM(MinutoEEPROM_1D));
 
-  out["2a"] = printDigit(readEEPROM(HoraEEPROM_2A)) + ":" + printDigit(readEEPROM(MinutoEEPROM_2A));
-  out["2d"] = printDigit(readEEPROM(HoraEEPROM_2D)) + ":" + printDigit(readEEPROM(MinutoEEPROM_2D));
+  out["h2"] = printDigit(readEEPROM(HoraEEPROM_2A)) + ":" + printDigit(readEEPROM(MinutoEEPROM_2A));
+  out["l2"] = printDigit(readEEPROM(HoraEEPROM_2D)) + ":" + printDigit(readEEPROM(MinutoEEPROM_2D));
 
-  out["3a"] = printDigit(readEEPROM(HoraEEPROM_3A)) + ":" + printDigit(readEEPROM(MinutoEEPROM_3A));
-  out["3d"] = printDigit(readEEPROM(HoraEEPROM_3D)) + ":" + printDigit(readEEPROM(MinutoEEPROM_3D));
+  out["h3"] = printDigit(readEEPROM(HoraEEPROM_3A)) + ":" + printDigit(readEEPROM(MinutoEEPROM_3A));
+  out["l3"] = printDigit(readEEPROM(HoraEEPROM_3D)) + ":" + printDigit(readEEPROM(MinutoEEPROM_3D));
 
-  out["4a"] = printDigit(readEEPROM(HoraEEPROM_4A)) + ":" + printDigit(readEEPROM(MinutoEEPROM_4A));
-  out["4d"] = printDigit(readEEPROM(HoraEEPROM_4D)) + ":" + printDigit(readEEPROM(MinutoEEPROM_4D));
+  out["h4"] = printDigit(readEEPROM(HoraEEPROM_4A)) + ":" + printDigit(readEEPROM(MinutoEEPROM_4A));
+  out["l4"] = printDigit(readEEPROM(HoraEEPROM_4D)) + ":" + printDigit(readEEPROM(MinutoEEPROM_4D));
 
   String output;
   serializeJson(out, output);
@@ -176,23 +174,37 @@ void novaPlaca() {
     writeEEPROM(i, 0);
   }
 }
-void alarmar(int StatusAlarme, int StatusRele, int pinRele, int alarmeInicial, int alarmeFinal, int horaAgora){
-  if (readEEPROM(StatusAlarme) == 1 && alarmeInicial != alarmeFinal) { //Se o alarme estiver ativado e hora inicial for diferente de hora final, executa.
+void alarmar(int pinRele, int alarmeInicial, int alarmeFinal){
+  int horaAgora = (hora*100)+minuto;
+  int indexComparador = statusRele[pinRele]+50; //Index de comparador para não ficar gravando na eeproom sem necessidade a cada minuto
+  if (readEEPROM(pinRele) == 1 && alarmeInicial != alarmeFinal) { //Se o alarme estiver ativado e hora inicial for diferente de hora final, executa.
     if(alarmeInicial < alarmeFinal){ //Se a hora de ligar for menor que a hora de desligar
       if(alarmeInicial <= horaAgora && alarmeFinal > horaAgora){ //Se a hora atual for maior ou igual hora do alarme
-        writeEEPROM(StatusRele, 1);
-        ciWrite(pinRele, HIGH);
+        if(readEEPROM(indexComparador)==0){
+          writeEEPROM(statusRele[pinRele], 1);
+          writeEEPROM(indexComparador, 1);
+          ciWrite(pinRele, HIGH);
+        }
       }else{
-        writeEEPROM(StatusRele, 0);
-        ciWrite(pinRele, LOW);
+        if(readEEPROM(indexComparador)==1){
+          writeEEPROM(statusRele[pinRele], 0);
+          writeEEPROM(indexComparador, 0);
+          ciWrite(pinRele, LOW);
+        }
       }
     }else{ //Se a hora de ligar for maior que a hora de desligar
       if(alarmeInicial <= horaAgora || alarmeFinal > horaAgora){
-        writeEEPROM(StatusRele, 1);
-        ciWrite(pinRele, HIGH);
+        if(readEEPROM(indexComparador)==0){
+          writeEEPROM(statusRele[pinRele], 1);
+          writeEEPROM(indexComparador, 1);
+          ciWrite(pinRele, HIGH);
+        }
       }else{
-        writeEEPROM(StatusRele, 0);
-        ciWrite(pinRele, LOW);
+        if(readEEPROM(indexComparador)==1){
+          writeEEPROM(statusRele[pinRele], 0);
+          writeEEPROM(indexComparador, 0);
+          ciWrite(pinRele, LOW);
+        }
       }
     }
   }
@@ -229,8 +241,8 @@ void loop() {
     String entrada = doc["ent"];
 
     if (entrada == "st") {
-      int valrele = doc["r"];
-      if (doc["df"] == 1) {
+      int valrele = doc["a"];
+      if (doc["s"] == 1) {
         switch (valrele) {
           case 1:
             writeEEPROM(alarmeEEPROM1, 1);
@@ -266,10 +278,13 @@ void loop() {
       enviaComando();
     }
     if (entrada == "hr") {
-      enviaDadosHora(doc["h"], doc["m"], 0);
+      uint32_t epoch = doc["h"];
+      rtc.adjust(DateTime(epoch));
+      enviaComando();
     }
     if (entrada == "dt") {
-      enviaDadosData(doc["d"], doc["m"], doc["a"]);
+      rtc.adjust(DateTime(doc["a"], doc["m"], doc["d"], doc["h"], doc["m"], doc["s"]));
+      enviaComando();
     }
     if (entrada == "al") {
       byte horaAtiva = doc["ha"];
@@ -305,28 +320,10 @@ void loop() {
       }
     }
     if (entrada == "di") {
-      byte str = doc["r"];
-      byte estado = doc["s"];
-      switch (str) {
-      case 1:
-        alteraRele(1, estado, alarmeEEPROM1, statusRele[0]);
-      break;
-      case 2:
-        alteraRele(1, estado, alarmeEEPROM2, statusRele[1]);
-      break;
-      case 3:
-        alteraRele(1, estado, alarmeEEPROM3, statusRele[2]);
-      break;
-      case 4:
-        alteraRele(1, estado, alarmeEEPROM4, statusRele[3]);
-      break;
-      }
+        alteraRele(doc["r"], doc["s"]);
     }
-    Serial.println(Comando);
   }
   if (novominuto != minuto) {
-    enviaComando();
-    novominuto = minuto;
 
     int s1a = (readEEPROM(HoraEEPROM_1A)*100)+readEEPROM(MinutoEEPROM_1A);
     int s1d = (readEEPROM(HoraEEPROM_1D)*100)+readEEPROM(MinutoEEPROM_1D);
@@ -339,8 +336,10 @@ void loop() {
 
     int s4a = (readEEPROM(HoraEEPROM_4A)*100)+readEEPROM(MinutoEEPROM_4A);
     int s4d = (readEEPROM(HoraEEPROM_4D)*100)+readEEPROM(MinutoEEPROM_4D);
-    int horaAtual = (hora*100)+minuto;
 
-    alarmar(alarmeEEPROM1, statusRele[0], pinRele1, s1a, s1d, horaAtual);
+    alarmar(pinRele1, s1a, s1d);
+
+    enviaComando();
+    novominuto = minuto;
   }
 }
