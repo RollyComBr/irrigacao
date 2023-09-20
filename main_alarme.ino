@@ -94,10 +94,11 @@ void enviaDadosHora(uint32_t epoch) {
 }
 //Funções para ativação dos Reles
 void alteraRele(int pinRele, int estado) {
+  pinRele = pinRele-1;
   writeEEPROM(pinRele, 0); //Status do alarme
   writeEEPROM(statusRele[pinRele], estado); //Estado atual do rele
   writeEEPROM(statusRele[pinRele]+50, estado); //index de comparador da função alarmar
-  ciWrite(pinRele1, estado);
+  ciWrite(pinRele, estado);
 }
 void pegaDadosRelogio() {
   temperatura = rtc.getTemperature();  //temperadura do ds3231
