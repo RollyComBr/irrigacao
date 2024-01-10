@@ -5,23 +5,35 @@
 #include <SoftwareSerial.h>
 #include <avr/wdt.h>
 #include <ArduinoJson.h>
-/*
-//deve descomentar a linha 1003, 222 e 223
-#include <OneWire.h> //BIBLIOTECA NECESSÁRIA PARA O DS18B20
-#include <DallasTemperature.h> //BIBLIOTECA NECESSÁRIA PARA O DS18B20
-#define DS18B20 5
-OneWire ourWire(DS18B20);//CONFIGURA UMA INSTÂNCIA ONEWIRE PARA SE COMUNICAR COM DS18B20
-DallasTemperature sensors(&ourWire);
-*/
+
+#define TipoRTC 1 //Se for usar RTC_DS1307 colocar 1, se for usar o DS3132 coloca 0
+#define LeitorTemp 1 //Se for usar um thermistor colocar 1, se for usar o DS18B20 no D5, colocar 0
+#define NovaPlaca 0 // Se a placa for nova recebe 1 (true) e depois de reinicializar muda pra 0 e grava novamente
+
+#if TipoRTC == 1
+  RTC_DS1307 rtc; //Objeto rtc da classe DS1307
+  #define deviceaddress 0x50 //EEPROM 32k
+#else
+  RTC_DS3231 rtc; //Objeto rtc da classe DS3132
+  #define deviceaddress 0x57 //EEPROM 32k
+#endif
+
+#if LeitorTemp == 1
+  #include <Thermistor.h>
+  #define ThermNTC A1
+  Thermistor temp(ThermNTC);
+#else
+  #include <OneWire.h> //BIBLIOTECA NECESSÁRIA PARA O DS18B20
+  #include <DallasTemperature.h> //BIBLIOTECA NECESSÁRIA PARA O DS18B20
+  #define DS18B20 5
+  OneWire ourWire(DS18B20);//CONFIGURA UMA INSTÂNCIA ONEWIRE PARA SE COMUNICAR COM DS18B20
+  DallasTemperature sensors(&ourWire);
+#endif
 
 //Declaração da porta de comunicação do bluethoth e setando-o
 #define txdpin 6
 #define rxdpin 7
 SoftwareSerial bluetooth(txdpin, rxdpin);
-
-//As linhas de codigo a seguir devem ser comentadas, ou descomentadas, de acordo com o modelo de RTC utilizado (DS1307 ou DS3132)
-//RTC_DS1307 rtc; //Objeto rtc da classe DS1307
-RTC_DS3231 rtc;  //Objeto rtc da classe DS3132
 
 byte mes, dia, hora, minuto, segundo, diasemana, temperatura;
 int ano;
@@ -39,9 +51,6 @@ byte novominuto = 0;
 #define pinDS 2     //Pino Data
 #define qtdeCI 1    //Quantidade de CI
 
-//Funções de escrita na EEPROM 32k
-#define deviceaddress 0x57
-//#define deviceaddress 0x50
 //Variáveis Endereo EEPROM do alarme
 //Quantidade de alarmes que podem ser configurados
 #define quantAlarms 4
@@ -92,6 +101,9 @@ int portas[] = { pinRele1, pinRele2, pinRele3, pinRele4 };
 void enviaDadosHora(uint32_t epoch) {
   rtc.adjust(DateTime(epoch));
 }
+void enviaDadosHora(byte e_hora, byte e_minuto, byte e_segundo, byte e_dia, byte e_mes, byte e_ano){
+  rtc.adjust(DateTime(e_ano, e_mes, e_dia, e_hora, e_minuto, e_segundo));
+}
 //Funções para ativação dos Reles
 void alteraRele(int pinRele, int estado) {
   pinRele = pinRele-1;
@@ -101,8 +113,12 @@ void alteraRele(int pinRele, int estado) {
   ciWrite(pinRele, estado);
 }
 void pegaDadosRelogio() {
-  temperatura = rtc.getTemperature();  //temperadura do ds3231
-
+  #if LeitorTemp == 1
+    temperatura = temp.getTemp(); //Temperatura da biblioteca thermistor
+  #else
+    sensors.requestTemperatures();//REQUISITA A TEMPERATURA DO SENSOR
+    temperatura = sensors.getTempCByIndex(0); //recebe temperatura do DS18B20 da biblioteca DallasTemperature
+  #endif
   DateTime agora = rtc.now();
   segundo = agora.second();          //recebe segundo
   minuto = agora.minute();           //recebe minuto
@@ -176,6 +192,8 @@ void novaPlaca() {
   }
 }
 void alarmar(int pinRele, int alarmeInicial, int alarmeFinal){
+  Serial.print("Status do rele ");
+  Serial.print(pinRele);
   int horaAgora = (hora*100)+minuto;
   int indexComparador = statusRele[pinRele]+50; //Index de comparador para não ficar gravando na eeproom sem necessidade a cada minuto
   if (readEEPROM(pinRele) == 1 && alarmeInicial != alarmeFinal) { //Se o alarme estiver ativado e hora inicial for diferente de hora final, executa.
@@ -185,12 +203,14 @@ void alarmar(int pinRele, int alarmeInicial, int alarmeFinal){
           writeEEPROM(statusRele[pinRele], 1);
           writeEEPROM(indexComparador, 1);
           ciWrite(pinRele, HIGH);
+          Serial.println(": Ligado");
         }
       }else{
         if(readEEPROM(indexComparador)==1){
           writeEEPROM(statusRele[pinRele], 0);
           writeEEPROM(indexComparador, 0);
           ciWrite(pinRele, LOW);
+          Serial.println(": Desligado");
         }
       }
     }else{ //Se a hora de ligar for maior que a hora de desligar
@@ -199,12 +219,14 @@ void alarmar(int pinRele, int alarmeInicial, int alarmeFinal){
           writeEEPROM(statusRele[pinRele], 1);
           writeEEPROM(indexComparador, 1);
           ciWrite(pinRele, HIGH);
+          Serial.println(": Ligado");
         }
       }else{
         if(readEEPROM(indexComparador)==1){
           writeEEPROM(statusRele[pinRele], 0);
           writeEEPROM(indexComparador, 0);
           ciWrite(pinRele, LOW);
+          Serial.println(": Desligado");
         }
       }
     }
@@ -218,6 +240,9 @@ void setup() {
   Wire.begin();
   Serial.begin(9600);
   rtc.begin();
+  #if LeitorTemp == 0
+    sensors.begin();
+  #endif
 
   pegaDadosRelogio();
   novominuto = minuto;
@@ -228,7 +253,9 @@ void setup() {
   for (int nL = 0; nL < quantAlarms; nL++) {
     ciWrite(portas[nL], readEEPROM(statusRele[nL]));
   }
-  //novaPlaca();
+  #if NovaPlaca == 1
+    novaPlaca();
+  #endif
   delay(100);
 }
 
@@ -241,7 +268,7 @@ void loop() {
     deserializeJson(doc, Comando);
     String entrada = doc["ent"];
 
-    if (entrada == "st") {
+    if (entrada == "st") { //{"ent":"st","a":1,"s":1}
       int valrele = doc["a"];
       if (doc["s"] == 1) {
         switch (valrele) {
@@ -275,19 +302,19 @@ void loop() {
         }
       }
     }
-    if (entrada == "dd") {
+    if (entrada == "dd") { //{"ent":"dd"}
       enviaComando();
     }
-    if (entrada == "hr") {
+    if (entrada == "hr") { //{"ent":"hr","h":1695105003}
       uint32_t epoch = doc["h"];
       rtc.adjust(DateTime(epoch));
       enviaComando();
     }
-    if (entrada == "dt") {
+    if (entrada == "dt") { //{"ent":"dt","h":3,"m":31,"s":0,"d":17,"m":8,"a":2023}
       rtc.adjust(DateTime(doc["a"], doc["m"], doc["d"], doc["h"], doc["m"], doc["s"]));
       enviaComando();
     }
-    if (entrada == "al") {
+    if (entrada == "al") { //{"ent":"al","r":1,"ha":21,"ma":15,"hd":22,"md":15}
       byte horaAtiva = doc["ha"];
       byte minutoAtiva = doc["ma"];
       byte horaDesativa = doc["hd"];
@@ -320,7 +347,7 @@ void loop() {
       break;
       }
     }
-    if (entrada == "di") {
+    if (entrada == "di") { //{"ent":"di","r":2,"s":1}
         alteraRele(doc["r"], doc["s"]);
     }
   }
@@ -339,6 +366,9 @@ void loop() {
     int s4d = (readEEPROM(HoraEEPROM_4D)*100)+readEEPROM(MinutoEEPROM_4D);
 
     alarmar(pinRele1, s1a, s1d);
+    alarmar(pinRele1, s2a, s2d);
+    alarmar(pinRele1, s3a, s3d);
+    alarmar(pinRele1, s4a, s4d);
 
     enviaComando();
     novominuto = minuto;
