@@ -7,7 +7,7 @@
 #include <ArduinoJson.h>
 
 #define TipoRTC 1 //Se for usar RTC_DS1307 colocar 1, se for usar o DS3132 coloca 0
-#define LeitorTemp 1 //Se for usar um thermistor colocar 1, se for usar o DS18B20 no D5, colocar 0
+#define LeitorTemp 0 //Se for usar um thermistor colocar 1, se for usar o DS18B20 no D5, colocar 0
 #define NovaPlaca 0 // Se a placa for nova recebe 1 (true) e depois de reinicializar muda pra 0 e grava novamente
 
 #if TipoRTC == 1
@@ -152,7 +152,7 @@ String concatena() {
   }
   return conteudo;
 }
-void enviaComando() {
+/*void enviaComando() {
   pegaDadosRelogio();
   DynamicJsonDocument out(256);
   out["t"] = temperatura;
@@ -182,9 +182,86 @@ void enviaComando() {
 
   String output;
   serializeJson(out, output);
-
   Serial.println(output);
   bluetooth.println(output);
+}*/
+void enviaComando(bool concatena){
+  pegaDadosRelogio();
+      String envia;
+      envia += "{\"t\":";
+      envia += printDigit(temperatura);
+      envia += ",\"h\":\"";
+      envia += printDigit(hora);
+      envia += ":";
+      envia += printDigit(minuto);
+      envia += "\",\"d\":\"";
+      envia += printDigit(dia);
+      envia += "/";
+      envia += printDigit(mes);
+      envia += "/";
+      envia += ano;
+      envia += "\",\"r1\":";
+      envia += readEEPROM(statusRele[0]);
+      envia += ",\"r2\":";
+      envia += readEEPROM(statusRele[1]);
+      envia += ",\"r3\":";
+      envia += readEEPROM(statusRele[2]);
+      envia += ",\"r4\":";
+      envia += readEEPROM(statusRele[3]);
+      if (concatena == true) {
+          envia += ",\"a1\":";
+          envia += String(readEEPROM(alarmeEEPROM1));
+          envia += ",\"a2\":";
+          envia += String(readEEPROM(alarmeEEPROM2));
+          envia += ",\"a3\":";
+          envia += String(readEEPROM(alarmeEEPROM3));
+          envia += ",\"a4\":";
+          envia += String(readEEPROM(alarmeEEPROM4));
+          envia += ",\"h1\":\"";
+          
+          envia += printDigit(readEEPROM(HoraEEPROM_1A));
+          envia += ":";
+          envia += printDigit(readEEPROM(MinutoEEPROM_1A));
+          envia += "\",\"l1\":\"";
+          envia += printDigit(readEEPROM(HoraEEPROM_1D));
+          envia += ":";
+          envia += printDigit(readEEPROM(MinutoEEPROM_1D));
+          envia += "\",\"h2\":\"";
+
+          envia += printDigit(readEEPROM(HoraEEPROM_2A));
+          envia += ":";
+          envia += printDigit(readEEPROM(MinutoEEPROM_2A));
+          envia += "\",\"l2\":\"";
+          envia += printDigit(readEEPROM(HoraEEPROM_2D));
+          envia += ":";
+          envia += printDigit(readEEPROM(MinutoEEPROM_2D));
+          envia += "\",\"h3\":\"";
+
+          envia += printDigit(readEEPROM(HoraEEPROM_3A));
+          envia += ":";
+          envia += printDigit(readEEPROM(MinutoEEPROM_3A));
+          envia += "\",\"l3\":\"";
+          envia += printDigit(readEEPROM(HoraEEPROM_3D));
+          envia += ":";
+          envia += printDigit(readEEPROM(MinutoEEPROM_3D));
+          envia += "\",\"h4\":\"";
+
+          envia += printDigit(readEEPROM(HoraEEPROM_4A));
+          envia += ":";
+          envia += printDigit(readEEPROM(MinutoEEPROM_4A));
+          envia += "\",\"l4\":\"";
+          envia += printDigit(readEEPROM(HoraEEPROM_4D));
+          envia += ":";
+          envia += printDigit(readEEPROM(MinutoEEPROM_4D));
+          envia += "\"}";
+
+          concatena =false;
+      }else{
+        envia += "}";
+      }
+      bluetooth.println(envia);
+      Serial.println(envia);
+      envia = "";
 }
 void novaPlaca() {
   for (int i = 0; i < 200; i++) {
@@ -192,26 +269,26 @@ void novaPlaca() {
   }
 }
 void alarmar(int pinRele, int alarmeInicial, int alarmeFinal){
-  Serial.print("Status do rele ");
-  Serial.print(pinRele);
   int horaAgora = (hora*100)+minuto;
   int indexComparador = statusRele[pinRele]+50; //Index de comparador para não ficar gravando na eeproom sem necessidade a cada minuto
   if (readEEPROM(pinRele) == 1 && alarmeInicial != alarmeFinal) { //Se o alarme estiver ativado e hora inicial for diferente de hora final, executa.
+    Serial.print("Status do rele ");
+    Serial.print(pinRele+1);
     if(alarmeInicial < alarmeFinal){ //Se a hora de ligar for menor que a hora de desligar
       if(alarmeInicial <= horaAgora && alarmeFinal > horaAgora){ //Se a hora atual for maior ou igual hora do alarme
         if(readEEPROM(indexComparador)==0){
           writeEEPROM(statusRele[pinRele], 1);
           writeEEPROM(indexComparador, 1);
-          ciWrite(pinRele, HIGH);
-          Serial.println(": Ligado");
+          ciWrite(pinRele, HIGH); 
         }
+        Serial.println(": Ligado");
       }else{
         if(readEEPROM(indexComparador)==1){
           writeEEPROM(statusRele[pinRele], 0);
           writeEEPROM(indexComparador, 0);
           ciWrite(pinRele, LOW);
-          Serial.println(": Desligado");
         }
+        Serial.println(": Desligado");
       }
     }else{ //Se a hora de ligar for maior que a hora de desligar
       if(alarmeInicial <= horaAgora || alarmeFinal > horaAgora){
@@ -219,15 +296,15 @@ void alarmar(int pinRele, int alarmeInicial, int alarmeFinal){
           writeEEPROM(statusRele[pinRele], 1);
           writeEEPROM(indexComparador, 1);
           ciWrite(pinRele, HIGH);
-          Serial.println(": Ligado");
         }
+        Serial.println(": Ligado");
       }else{
         if(readEEPROM(indexComparador)==1){
           writeEEPROM(statusRele[pinRele], 0);
           writeEEPROM(indexComparador, 0);
           ciWrite(pinRele, LOW);
-          Serial.println(": Desligado");
         }
+        Serial.println(": Desligado");
       }
     }
   }
@@ -303,16 +380,16 @@ void loop() {
       }
     }
     if (entrada == "dd") { //{"ent":"dd"}
-      enviaComando();
+      enviaComando(true);
     }
     if (entrada == "hr") { //{"ent":"hr","h":1695105003}
       uint32_t epoch = doc["h"];
       rtc.adjust(DateTime(epoch));
-      enviaComando();
+      enviaComando(false);
     }
     if (entrada == "dt") { //{"ent":"dt","h":3,"m":31,"s":0,"d":17,"m":8,"a":2023}
       rtc.adjust(DateTime(doc["a"], doc["m"], doc["d"], doc["h"], doc["m"], doc["s"]));
-      enviaComando();
+      enviaComando(false);
     }
     if (entrada == "al") { //{"ent":"al","r":1,"ha":21,"ma":15,"hd":22,"md":15}
       byte horaAtiva = doc["ha"];
@@ -366,11 +443,11 @@ void loop() {
     int s4d = (readEEPROM(HoraEEPROM_4D)*100)+readEEPROM(MinutoEEPROM_4D);
 
     alarmar(pinRele1, s1a, s1d);
-    alarmar(pinRele1, s2a, s2d);
-    alarmar(pinRele1, s3a, s3d);
-    alarmar(pinRele1, s4a, s4d);
+    alarmar(pinRele2, s2a, s2d);
+    alarmar(pinRele3, s3a, s3d);
+    alarmar(pinRele4, s4a, s4d);
 
-    enviaComando();
+    enviaComando(false);
     novominuto = minuto;
   }
 }
