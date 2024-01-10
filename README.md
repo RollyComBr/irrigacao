@@ -71,3 +71,9 @@ ___________________________________________________________
 **Entrada=dispositivo, relé=2, Status=1 (V ou F)**
 
 >{"ent":"di","r":2,"s":1}
+
+### Comando resetar todas configurações:
+
+**Entrada=Reset**
+
+>{"ent":"rs"}
