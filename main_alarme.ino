@@ -8,7 +8,6 @@
 
 #define TipoRTC 1 //Se for usar RTC_DS1307 colocar 1, se for usar o DS3132 coloca 0
 #define LeitorTemp 0 //Se for usar um thermistor colocar 1, se for usar o DS18B20 no D5, colocar 0
-#define NovaPlaca 0 // Se a placa for nova recebe 1 (true) e depois de reinicializar muda pra 0 e grava novamente
 
 #if TipoRTC == 1
   RTC_DS1307 rtc; //Objeto rtc da classe DS1307
@@ -152,39 +151,6 @@ String concatena() {
   }
   return conteudo;
 }
-/*void enviaComando() {
-  pegaDadosRelogio();
-  DynamicJsonDocument out(256);
-  out["t"] = temperatura;
-  out["h"] = printDigit(hora) + ":" + printDigit(minuto);
-  out["d"] = printDigit(dia) + "/" + printDigit(mes) + "/" + ano;
-  out["r1"] = readEEPROM(statusRele[0]);
-  out["r2"] = readEEPROM(statusRele[1]);
-  out["r3"] = readEEPROM(statusRele[2]);
-  out["r4"] = readEEPROM(statusRele[3]);
-
-  out["a1"] = readEEPROM(alarmeEEPROM1);
-  out["a2"] = readEEPROM(alarmeEEPROM2);
-  out["a3"] = readEEPROM(alarmeEEPROM3);
-  out["a4"] = readEEPROM(alarmeEEPROM4);
-
-  out["h1"] = printDigit(readEEPROM(HoraEEPROM_1A)) + ":" + printDigit(readEEPROM(MinutoEEPROM_1A));
-  out["l1"] = printDigit(readEEPROM(HoraEEPROM_1D)) + ":" + printDigit(readEEPROM(MinutoEEPROM_1D));
-
-  out["h2"] = printDigit(readEEPROM(HoraEEPROM_2A)) + ":" + printDigit(readEEPROM(MinutoEEPROM_2A));
-  out["l2"] = printDigit(readEEPROM(HoraEEPROM_2D)) + ":" + printDigit(readEEPROM(MinutoEEPROM_2D));
-
-  out["h3"] = printDigit(readEEPROM(HoraEEPROM_3A)) + ":" + printDigit(readEEPROM(MinutoEEPROM_3A));
-  out["l3"] = printDigit(readEEPROM(HoraEEPROM_3D)) + ":" + printDigit(readEEPROM(MinutoEEPROM_3D));
-
-  out["h4"] = printDigit(readEEPROM(HoraEEPROM_4A)) + ":" + printDigit(readEEPROM(MinutoEEPROM_4A));
-  out["l4"] = printDigit(readEEPROM(HoraEEPROM_4D)) + ":" + printDigit(readEEPROM(MinutoEEPROM_4D));
-
-  String output;
-  serializeJson(out, output);
-  Serial.println(output);
-  bluetooth.println(output);
-}*/
 void enviaComando(bool concatena){
   pegaDadosRelogio();
       String envia;
@@ -309,6 +275,7 @@ void alarmar(int pinRele, int alarmeInicial, int alarmeFinal){
     }
   }
 }
+void(* resetFunc) (void) = 0; //Função para resetar o arduino rapidamente
 void setup() {
   delay(3000);  //caso precise reistalar o skatch, ele da tempo carregar o programa antes de carregar o watch dog
   //inicializa as bibliotecas
@@ -330,9 +297,6 @@ void setup() {
   for (int nL = 0; nL < quantAlarms; nL++) {
     ciWrite(portas[nL], readEEPROM(statusRele[nL]));
   }
-  #if NovaPlaca == 1
-    novaPlaca();
-  #endif
   delay(100);
 }
 
@@ -430,10 +394,11 @@ void loop() {
     }
     if (entrada == "rs") { //{"ent":"rs"}
       novaPlaca();
+      delay(1000);
+      resetFunc();
     }
   }
   if (novominuto != minuto) {
-
     int s1a = (readEEPROM(HoraEEPROM_1A)*100)+readEEPROM(MinutoEEPROM_1A);
     int s1d = (readEEPROM(HoraEEPROM_1D)*100)+readEEPROM(MinutoEEPROM_1D);
 
