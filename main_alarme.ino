@@ -4,10 +4,9 @@
 #include <Wire.h>
 #include <SoftwareSerial.h>
 #include <avr/wdt.h>
-#include <ArduinoJson.h>
 
 #define TipoRTC 1 //Se for usar RTC_DS1307 colocar 1, se for usar o DS3132 coloca 0
-#define LeitorTemp 0 //Se for usar um thermistor colocar 1, se for usar o DS18B20 no D5, colocar 0
+#define LeitorTemp 0 //Se for usar um thermistor colocar 1, se for usar o DS18B20 no D5 deve colocar 0
 
 #if TipoRTC == 1
   RTC_DS1307 rtc; //Objeto rtc da classe DS1307
@@ -237,43 +236,82 @@ void novaPlaca() {
 void alarmar(int pinRele, int alarmeInicial, int alarmeFinal){
   int horaAgora = (hora*100)+minuto;
   int indexComparador = statusRele[pinRele]+50; //Index de comparador para não ficar gravando na eeproom sem necessidade a cada minuto
-  if (readEEPROM(pinRele) == 1 && alarmeInicial != alarmeFinal) { //Se o alarme estiver ativado e hora inicial for diferente de hora final, executa.
-    //Serial.print("Status do rele ");
-    //Serial.print(pinRele+1);
-    if(alarmeInicial < alarmeFinal){ //Se a hora de ligar for menor que a hora de desligar
-      if(alarmeInicial <= horaAgora && alarmeFinal > horaAgora){ //Se a hora atual for maior ou igual hora do alarme
-        if(readEEPROM(indexComparador)==0){
-          writeEEPROM(statusRele[pinRele], 1);
-          writeEEPROM(indexComparador, 1);
-          ciWrite(pinRele, HIGH); 
+  if(readEEPROM(pinRele) == 1){ //Verifica se o alarme está ativado, se estiver ele executa a função de ativar os reles;
+    if (readEEPROM(pinRele) == 1 && alarmeInicial != alarmeFinal) { //Se o alarme estiver ativado e hora inicial for diferente de hora final, executa.
+      //Serial.print("Status do rele ");
+      //Serial.print(pinRele+1);
+      if(alarmeInicial < alarmeFinal){ //Se a hora de ligar for menor que a hora de desligar
+        if(alarmeInicial <= horaAgora && alarmeFinal > horaAgora){ //Se a hora atual for maior ou igual hora do alarme
+          if(readEEPROM(indexComparador)==0){
+            writeEEPROM(statusRele[pinRele], 1);
+            writeEEPROM(indexComparador, 1);
+            ciWrite(pinRele, HIGH); 
+          }
+          //Serial.println(": Ligado");
+        }else{
+          if(readEEPROM(indexComparador)==1){
+            writeEEPROM(statusRele[pinRele], 0);
+            writeEEPROM(indexComparador, 0);
+            ciWrite(pinRele, LOW);
+          }
+          //Serial.println(": Desligado");
         }
-        //Serial.println(": Ligado");
-      }else{
-        if(readEEPROM(indexComparador)==1){
-          writeEEPROM(statusRele[pinRele], 0);
-          writeEEPROM(indexComparador, 0);
-          ciWrite(pinRele, LOW);
+      }else{ //Se a hora de ligar for maior que a hora de desligar
+        if(alarmeInicial <= horaAgora || alarmeFinal > horaAgora){
+          if(readEEPROM(indexComparador)==0){
+            writeEEPROM(statusRele[pinRele], 1);
+            writeEEPROM(indexComparador, 1);
+            ciWrite(pinRele, HIGH);
+          }
+          //Serial.println(": Ligado");
+        }else{
+          if(readEEPROM(indexComparador)==1){
+            writeEEPROM(statusRele[pinRele], 0);
+            writeEEPROM(indexComparador, 0);
+            ciWrite(pinRele, LOW);
+          }
+          //Serial.println(": Desligado");
         }
-        //Serial.println(": Desligado");
-      }
-    }else{ //Se a hora de ligar for maior que a hora de desligar
-      if(alarmeInicial <= horaAgora || alarmeFinal > horaAgora){
-        if(readEEPROM(indexComparador)==0){
-          writeEEPROM(statusRele[pinRele], 1);
-          writeEEPROM(indexComparador, 1);
-          ciWrite(pinRele, HIGH);
-        }
-        //Serial.println(": Ligado");
-      }else{
-        if(readEEPROM(indexComparador)==1){
-          writeEEPROM(statusRele[pinRele], 0);
-          writeEEPROM(indexComparador, 0);
-          ciWrite(pinRele, LOW);
-        }
-        //Serial.println(": Desligado");
       }
     }
   }
+}
+String valorJson (String entTxt, String busca){
+  String retornoValor = "";
+ //limpa o json, removendo:{"}
+  for (int i=0; i <entTxt.length();++i){
+    char c = entTxt.charAt(i);
+    if(c=='{'){
+      entTxt.remove(i, 1);
+      i--;
+    }
+    if(c=='}')entTxt.remove(i, 1);
+    if(c=='"')entTxt.remove(i, 1);
+  }
+  //Serial.println(entTxt);
+  String verificador = entTxt;
+  if(verificador.substring(verificador.length()-1) == "}"){
+    entTxt.remove(verificador.length()-1);
+  }
+  entTxt = entTxt+",";
+  //Define variaveis e valores e seta os mesmo!!
+  int goOn = 1; int pos1=0; int pos2 = entTxt.length();
+  while( goOn == 1 ) {
+    pos1 = entTxt.lastIndexOf(",", pos2);
+    pos2 = entTxt.lastIndexOf(",", pos1 - 1);
+    if( pos2 <= 0 ) goOn = 0;
+    String tmp = entTxt.substring(pos2 + 1, pos1);
+    String nome = tmp.substring(0,tmp.indexOf(":"));
+    String valor = tmp.substring(tmp.indexOf(":")+1);
+
+    //Serial.println("nome: " + nome + " valor: " + valor);
+    //comparaçoes como essa:
+    if (nome == busca)
+     retornoValor=valor;
+
+    if( goOn != 1) break;
+  }
+  return retornoValor;
 }
 void(* resetFunc) (void) = 0; //Função para resetar o arduino rapidamente
 void setup() {
@@ -299,98 +337,67 @@ void setup() {
   }
   delay(100);
 }
-
 void loop() {
   wdt_reset();  //watch dog
   pegaDadosRelogio();
   if (Serial.available() > 0 || bluetooth.available() > 0) {
     String Comando = concatena();
-    DynamicJsonDocument doc(256);
-    deserializeJson(doc, Comando);
-    String entrada = doc["ent"];
+    String entrada = valorJson(Comando, "ent");
+    //Serial.println(valorJson(Comando, "ent"));
 
     if (entrada == "st") { //{"ent":"st","a":1,"s":1}
-      int valrele = doc["a"];
-      if (doc["s"] == 1) {
-        switch (valrele) {
-          case 1:
-            writeEEPROM(alarmeEEPROM1, 1);
-            break;
-          case 2:
-            writeEEPROM(alarmeEEPROM2, 1);
-            break;
-          case 3:
-            writeEEPROM(alarmeEEPROM3, 1);
-            break;
-          case 4:
-            writeEEPROM(alarmeEEPROM4, 1);
-            break;
-        }
-      } else {
-        switch (valrele) {
-          case 1:
-            writeEEPROM(alarmeEEPROM1, 0);
-            break;
-          case 2:
-            writeEEPROM(alarmeEEPROM2, 0);
-            break;
-          case 3:
-            writeEEPROM(alarmeEEPROM3, 0);
-            break;
-          case 4:
-            writeEEPROM(alarmeEEPROM4, 0);
-            break;
-        }
-      }
+      int valrele = valorJson(Comando, "a").toInt();
+      int valStatus = valorJson(Comando, "s").toInt();
+      writeEEPROM(valrele-1, valStatus);
       enviaComando(true);
     }
     if (entrada == "dd") { //{"ent":"dd"}
       enviaComando(true);
     }
     if (entrada == "hr") { //{"ent":"hr","h":1695105003}
-      uint32_t epoch = doc["h"];
+      uint32_t epoch = valorJson(Comando, "h").toInt();
       rtc.adjust(DateTime(epoch));
       enviaComando(false);
     }
-    if (entrada == "dt") { //{"ent":"dt","h":3,"m":31,"s":0,"d":17,"m":8,"a":2023}
-      rtc.adjust(DateTime(doc["a"], doc["m"], doc["d"], doc["h"], doc["m"], doc["s"]));
+    if (entrada == "dt") { //{"ent":"dt","h":3,"m":31,"s":0,"d":17,"M":8,"a":2023}
+      rtc.adjust(DateTime(valorJson(Comando, "a").toInt(), valorJson(Comando, "m").toInt(), valorJson(Comando, "d").toInt(), valorJson(Comando, "h").toInt(), valorJson(Comando, "M").toInt(), valorJson(Comando, "a").toInt()));
       enviaComando(false);
     }
     if (entrada == "al") { //{"ent":"al","r":1,"ha":21,"ma":15,"hd":22,"md":15}
-      byte horaAtiva = doc["ha"];
-      byte minutoAtiva = doc["ma"];
-      byte horaDesativa = doc["hd"];
-      byte minutoDesativa = doc["md"];
-      byte relval = doc["r"];
+      int horaAtiva = valorJson(Comando, "ha").toInt();
+      int minutoAtiva = valorJson(Comando, "ma").toInt();
+      int horaDesativa = valorJson(Comando, "hd").toInt();
+      int minutoDesativa = valorJson(Comando, "md").toInt();
+      int relval = valorJson(Comando, "r").toInt();
       switch (relval) {
-      case 1:
-        writeEEPROM(HoraEEPROM_1A, horaAtiva);
-        writeEEPROM(MinutoEEPROM_1A, minutoAtiva);
-        writeEEPROM(HoraEEPROM_1D, horaDesativa);
-        writeEEPROM(MinutoEEPROM_1D, minutoDesativa);
-      break;
-      case 2:
-        writeEEPROM(HoraEEPROM_2A, horaAtiva);
-        writeEEPROM(MinutoEEPROM_2A, minutoAtiva);
-        writeEEPROM(HoraEEPROM_2D, horaDesativa);
-        writeEEPROM(MinutoEEPROM_2D, minutoDesativa);
-      break;
-      case 3:
-        writeEEPROM(HoraEEPROM_3A, horaAtiva);
-        writeEEPROM(MinutoEEPROM_3A, minutoAtiva);
-        writeEEPROM(HoraEEPROM_3D, horaDesativa);
-        writeEEPROM(MinutoEEPROM_3D, minutoDesativa);
-      break;
-      case 4:
-        writeEEPROM(HoraEEPROM_4A, horaAtiva);
-        writeEEPROM(MinutoEEPROM_4A, minutoAtiva);
-        writeEEPROM(HoraEEPROM_4D, horaDesativa);
-        writeEEPROM(MinutoEEPROM_4D, minutoDesativa);
-      break;
+        case 1:
+          writeEEPROM(HoraEEPROM_1A, horaAtiva);
+          writeEEPROM(MinutoEEPROM_1A, minutoAtiva);
+          writeEEPROM(HoraEEPROM_1D, horaDesativa);
+          writeEEPROM(MinutoEEPROM_1D, minutoDesativa);
+        break;
+        case 2:
+          writeEEPROM(HoraEEPROM_2A, horaAtiva);
+          writeEEPROM(MinutoEEPROM_2A, minutoAtiva);
+          writeEEPROM(HoraEEPROM_2D, horaDesativa);
+          writeEEPROM(MinutoEEPROM_2D, minutoDesativa);
+        break;
+        case 3:
+          writeEEPROM(HoraEEPROM_3A, horaAtiva);
+          writeEEPROM(MinutoEEPROM_3A, minutoAtiva);
+          writeEEPROM(HoraEEPROM_3D, horaDesativa);
+          writeEEPROM(MinutoEEPROM_3D, minutoDesativa);
+        break;
+        case 4:
+          writeEEPROM(HoraEEPROM_4A, horaAtiva);
+          writeEEPROM(MinutoEEPROM_4A, minutoAtiva);
+          writeEEPROM(HoraEEPROM_4D, horaDesativa);
+          writeEEPROM(MinutoEEPROM_4D, minutoDesativa);
+        break;
       }
     }
     if (entrada == "di") { //{"ent":"di","r":2,"s":1}
-        alteraRele(doc["r"], doc["s"]);
+        alteraRele(valorJson(Comando, "r").toInt(), valorJson(Comando, "s").toInt());
     }
     if (entrada == "rs") { //{"ent":"rs"}
       novaPlaca();
