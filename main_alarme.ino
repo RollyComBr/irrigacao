@@ -236,42 +236,40 @@ void novaPlaca() {
 void alarmar(int pinRele, int alarmeInicial, int alarmeFinal){
   int horaAgora = (hora*100)+minuto;
   int indexComparador = statusRele[pinRele]+50; //Index de comparador para não ficar gravando na eeproom sem necessidade a cada minuto
-  if(readEEPROM(pinRele) == 1){ //Verifica se o alarme está ativado, se estiver ele executa a função de ativar os reles;
-    if (readEEPROM(pinRele) == 1 && alarmeInicial != alarmeFinal) { //Se o alarme estiver ativado e hora inicial for diferente de hora final, executa.
-      //Serial.print("Status do rele ");
-      //Serial.print(pinRele+1);
-      if(alarmeInicial < alarmeFinal){ //Se a hora de ligar for menor que a hora de desligar
-        if(alarmeInicial <= horaAgora && alarmeFinal > horaAgora){ //Se a hora atual for maior ou igual hora do alarme
-          if(readEEPROM(indexComparador)==0){
-            writeEEPROM(statusRele[pinRele], 1);
-            writeEEPROM(indexComparador, 1);
-            ciWrite(pinRele, HIGH); 
-          }
-          //Serial.println(": Ligado");
-        }else{
-          if(readEEPROM(indexComparador)==1){
-            writeEEPROM(statusRele[pinRele], 0);
-            writeEEPROM(indexComparador, 0);
-            ciWrite(pinRele, LOW);
-          }
-          //Serial.println(": Desligado");
+  if (readEEPROM(pinRele) == 1 && alarmeInicial != alarmeFinal) { //Se o alarme estiver ativado e hora inicial for diferente de hora final, executa.
+    //Serial.print("Status do rele ");
+    //Serial.print(pinRele+1);
+    if(alarmeInicial < alarmeFinal){ //Se a hora de ligar for menor que a hora de desligar
+      if(alarmeInicial <= horaAgora && alarmeFinal > horaAgora){ //Se a hora atual for maior ou igual hora do alarme
+        if(readEEPROM(indexComparador)==0){
+          writeEEPROM(statusRele[pinRele], 1);
+          writeEEPROM(indexComparador, 1);
+          ciWrite(pinRele, HIGH); 
         }
-      }else{ //Se a hora de ligar for maior que a hora de desligar
-        if(alarmeInicial <= horaAgora || alarmeFinal > horaAgora){
-          if(readEEPROM(indexComparador)==0){
-            writeEEPROM(statusRele[pinRele], 1);
-            writeEEPROM(indexComparador, 1);
-            ciWrite(pinRele, HIGH);
-          }
-          //Serial.println(": Ligado");
-        }else{
-          if(readEEPROM(indexComparador)==1){
-            writeEEPROM(statusRele[pinRele], 0);
-            writeEEPROM(indexComparador, 0);
-            ciWrite(pinRele, LOW);
-          }
-          //Serial.println(": Desligado");
+        //Serial.println(": Ligado");
+      }else{
+        if(readEEPROM(indexComparador)==1){
+          writeEEPROM(statusRele[pinRele], 0);
+          writeEEPROM(indexComparador, 0);
+          ciWrite(pinRele, LOW);
         }
+        //Serial.println(": Desligado");
+      }
+    }else{ //Se a hora de ligar for maior que a hora de desligar
+      if(alarmeInicial <= horaAgora || alarmeFinal > horaAgora){
+        if(readEEPROM(indexComparador)==0){
+          writeEEPROM(statusRele[pinRele], 1);
+          writeEEPROM(indexComparador, 1);
+          ciWrite(pinRele, HIGH);
+        }
+        //Serial.println(": Ligado");
+      }else{
+        if(readEEPROM(indexComparador)==1){
+          writeEEPROM(statusRele[pinRele], 0);
+          writeEEPROM(indexComparador, 0);
+          ciWrite(pinRele, LOW);
+        }
+        //Serial.println(": Desligado");
       }
     }
   }
