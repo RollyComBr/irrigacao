@@ -53,11 +53,18 @@ byte novominuto = 0;
 //Quantidade de alarmes que podem ser configurados
 #define quantAlarms 4
 //Reservando endereços EEPROM
+//Endereço 30 ao 36 reservado para dias da semana
+int diaSemanaA1[7]={60,61,62,53,64,65,66};
+int diaSemanaA2[7]={67,68,69,70,71,72,73};
+int diaSemanaA3[7]={74,75,76,77,78,79,80};
+int diaSemanaA4[7]={81,82,83,84,85,86,87};
 int alarmeEEPROM1 = 0, alarmeEEPROM2 = 1, alarmeEEPROM3 = 2, alarmeEEPROM4 = 3;
 int HoraEEPROM_1A = 10, MinutoEEPROM_1A = 11, HoraEEPROM_1D = 12, MinutoEEPROM_1D = 13;
 int HoraEEPROM_2A = 14, MinutoEEPROM_2A = 15, HoraEEPROM_2D = 16, MinutoEEPROM_2D = 17;
 int HoraEEPROM_3A = 18, MinutoEEPROM_3A = 19, HoraEEPROM_3D = 20, MinutoEEPROM_3D = 21;
 int HoraEEPROM_4A = 22, MinutoEEPROM_4A = 23, HoraEEPROM_4D = 24, MinutoEEPROM_4D = 25;
+int statusRele[quantAlarms] = { 100, 101, 102, 103 };
+int portas[] = { pinRele1, pinRele2, pinRele3, pinRele4 };
 //Função 74HC595
 void ciWrite(byte pino, bool estado) {
   static byte ciBuffer[qtdeCI];
@@ -93,8 +100,6 @@ byte readEEPROM(unsigned int eeaddress) {
   if (Wire.available()) rdata = Wire.read();
   return rdata;
 }
-int statusRele[quantAlarms] = { 100, 101, 102, 103 };
-int portas[] = { pinRele1, pinRele2, pinRele3, pinRele4 };
 //Declara as portas do Time e inicializa o DS3231
 void enviaDadosHora(uint32_t epoch) {
   rtc.adjust(DateTime(epoch));
@@ -182,8 +187,8 @@ void enviaComando(bool concatena){
           envia += String(readEEPROM(alarmeEEPROM3));
           envia += ",\"a4\":";
           envia += String(readEEPROM(alarmeEEPROM4));
+
           envia += ",\"h1\":\"";
-          
           envia += printDigit(readEEPROM(HoraEEPROM_1A));
           envia += ":";
           envia += printDigit(readEEPROM(MinutoEEPROM_1A));
@@ -218,8 +223,24 @@ void enviaComando(bool concatena){
           envia += printDigit(readEEPROM(HoraEEPROM_4D));
           envia += ":";
           envia += printDigit(readEEPROM(MinutoEEPROM_4D));
+          
+          envia += "\",\"w1\":\"";
+          for(int i=0; i<7; i++){
+            envia += readEEPROM(diaSemanaA1[i]);
+          }
+          envia += "\",\"w2\":\"";
+          for(int i=0; i<7; i++){
+            envia += readEEPROM(diaSemanaA2[i]);
+          }
+          envia += "\",\"w3\":\"";
+          for(int i=0; i<7; i++){
+            envia += readEEPROM(diaSemanaA3[i]);
+          }
+          envia += "\",\"w4\":\"";
+          for(int i=0; i<7; i++){
+            envia += readEEPROM(diaSemanaA4[i]);
+          }
           envia += "\"}";
-
           concatena =false;
       }else{
         envia += "}";
@@ -233,12 +254,36 @@ void novaPlaca() {
     writeEEPROM(i, 0);
   }
 }
+/*criar array como função
+int * createArray(uint8_t size){
+  if (size > 0) 
+  {
+    int* p = (int*) malloc(size * sizeof(int));
+    for (int i = 0; i< size; i++) *p++ = i*i;
+    return p;
+  }
+  return null;
+}
+*/
 void alarmar(int pinRele, int alarmeInicial, int alarmeFinal){
   int horaAgora = (hora*100)+minuto;
   int indexComparador = statusRele[pinRele]+50; //Index de comparador para não ficar gravando na eeproom sem necessidade a cada minuto
-  if (readEEPROM(pinRele) == 1 && alarmeInicial != alarmeFinal) { //Se o alarme estiver ativado e hora inicial for diferente de hora final, executa.
-    //Serial.print("Status do rele ");
-    //Serial.print(pinRele+1);
+  int diaAlsem;
+  switch (pinRele) {
+  case 1:
+    diaAlsem = readEEPROM(diaSemanaA1[diasemana]);
+  break;
+  case 2:
+    diaAlsem = readEEPROM(diaSemanaA2[diasemana]);
+  break;
+  case 3:
+    diaAlsem = readEEPROM(diaSemanaA3[diasemana]);
+  break;
+  case 4:
+    diaAlsem = readEEPROM(diaSemanaA4[diasemana]);
+  break;
+  }
+  if (readEEPROM(pinRele) == 1 && alarmeInicial != alarmeFinal && diaAlsem == 1) { //Se o alarme estiver ativado e hora inicial for diferente de hora final e dia da semana for dia ativo, executa.
     if(alarmeInicial < alarmeFinal){ //Se a hora de ligar for menor que a hora de desligar
       if(alarmeInicial <= horaAgora && alarmeFinal > horaAgora){ //Se a hora atual for maior ou igual hora do alarme
         if(readEEPROM(indexComparador)==0){
@@ -246,14 +291,12 @@ void alarmar(int pinRele, int alarmeInicial, int alarmeFinal){
           writeEEPROM(indexComparador, 1);
           ciWrite(pinRele, HIGH); 
         }
-        //Serial.println(": Ligado");
       }else{
         if(readEEPROM(indexComparador)==1){
           writeEEPROM(statusRele[pinRele], 0);
           writeEEPROM(indexComparador, 0);
           ciWrite(pinRele, LOW);
         }
-        //Serial.println(": Desligado");
       }
     }else{ //Se a hora de ligar for maior que a hora de desligar
       if(alarmeInicial <= horaAgora || alarmeFinal > horaAgora){
@@ -262,14 +305,12 @@ void alarmar(int pinRele, int alarmeInicial, int alarmeFinal){
           writeEEPROM(indexComparador, 1);
           ciWrite(pinRele, HIGH);
         }
-        //Serial.println(": Ligado");
       }else{
         if(readEEPROM(indexComparador)==1){
           writeEEPROM(statusRele[pinRele], 0);
           writeEEPROM(indexComparador, 0);
           ciWrite(pinRele, LOW);
         }
-        //Serial.println(": Desligado");
       }
     }
   }
@@ -286,7 +327,6 @@ String valorJson (String entTxt, String busca){
     if(c=='}')entTxt.remove(i, 1);
     if(c=='"')entTxt.remove(i, 1);
   }
-  //Serial.println(entTxt);
   String verificador = entTxt;
   if(verificador.substring(verificador.length()-1) == "}"){
     entTxt.remove(verificador.length()-1);
@@ -302,8 +342,6 @@ String valorJson (String entTxt, String busca){
     String nome = tmp.substring(0,tmp.indexOf(":"));
     String valor = tmp.substring(tmp.indexOf(":")+1);
 
-    //Serial.println("nome: " + nome + " valor: " + valor);
-    //comparaçoes como essa:
     if (nome == busca)
      retornoValor=valor;
 
@@ -341,7 +379,7 @@ void loop() {
   if (Serial.available() > 0 || bluetooth.available() > 0) {
     String Comando = concatena();
     String entrada = valorJson(Comando, "ent");
-    //Serial.println(valorJson(Comando, "ent"));
+    //Serial.println(Comando);
 
     if (entrada == "st") { //{"ent":"st","a":1,"s":1}
       int valrele = valorJson(Comando, "a").toInt();
@@ -396,6 +434,27 @@ void loop() {
     }
     if (entrada == "di") { //{"ent":"di","r":2,"s":1}
         alteraRele(valorJson(Comando, "r").toInt(), valorJson(Comando, "s").toInt());
+    }
+    if (entrada == "wk") { //{"ent":"wk","a":1,"d":"1000001"}
+      String diasAlarme = valorJson(Comando, "d");
+      for(int i=0; i<7; i++){
+        char valDias = diasAlarme[i];
+        int someInt = valDias - '0';
+        switch (valorJson(Comando, "a").toInt()) {
+        case 1:
+          writeEEPROM(diaSemanaA1[i], someInt);
+        break;
+        case 2:
+          writeEEPROM(diaSemanaA2[i], someInt);
+        break;
+        case 3:
+          writeEEPROM(diaSemanaA3[i], someInt);
+        break;
+        case 4:
+          writeEEPROM(diaSemanaA4[i], someInt);
+        break;
+        }
+      }
     }
     if (entrada == "rs") { //{"ent":"rs"}
       novaPlaca();
