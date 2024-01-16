@@ -77,3 +77,9 @@ ___________________________________________________________
 **Entrada=Reset**
 
 >{"ent":"rs"}
+
+### Comando editar dias da semana que pode alarmar:
+
+**Entrada=semana, alarme=1, dias=DSTQQSS (1 ou 0)**
+
+>{"ent":"wk","a":1,"d":"1000001"}
