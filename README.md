@@ -50,9 +50,9 @@ ___________________________________________________________
 
 ### Comando para atualizar a hora:
 
-**Entrada=Hora, Hora=1695105003(Epoch & Unix Timestamp)**
+**Entrada=Hora, GmtZone=-3, Hora=1695105003(Epoch & Unix Timestamp)**
 
->{"ent":"hr","h":1695105003}
+>{"ent":"hr","gmt":-3,"h":1716050337}
 
 ### Comando para atualizar a data:
 
