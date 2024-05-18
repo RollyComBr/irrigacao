@@ -6,7 +6,7 @@
 #include <avr/wdt.h>
 
 #define TipoRTC 1 //Se for usar RTC_DS1307 colocar 1, se for usar o DS3132 coloca 0
-#define LeitorTemp 0 //Se for usar um thermistor colocar 1, se for usar o DS18B20 no D5 deve colocar 0
+#define LeitorTemp 1 //Se for usar um thermistor colocar 1, se for usar o DS18B20 no D5 deve colocar 0
 
 #if TipoRTC == 1
   RTC_DS1307 rtc; //Objeto rtc da classe DS1307
@@ -36,8 +36,6 @@ SoftwareSerial bluetooth(txdpin, rxdpin);
 byte mes, dia, hora, minuto, segundo, diasemana, temperatura;
 int ano;
 byte novominuto = 0;
-
-String ultimoTempo, ultimoCmd;
 
 //Setando as portas dos reles
 #define pinRele1 0
@@ -102,8 +100,9 @@ byte readEEPROM(unsigned int eeaddress) {
   if (Wire.available()) rdata = Wire.read();
   return rdata;
 }
-//Declara as portas do Time e inicializa o DS3231
+//Declara as portas do Time e inicializa o RTC
 void enviaDadosHora(uint32_t epoch) {
+  epoch= epoch-10800;
   rtc.adjust(DateTime(epoch));
 }
 void enviaDadosHora(byte e_hora, byte e_minuto, byte e_segundo, byte e_dia, byte e_mes, byte e_ano){
@@ -155,98 +154,114 @@ String concatena() {
     }
     delay(15);
   }
+  //Serial.println(conteudo);
   return conteudo;
 }
-void enviaComando(bool concatena){
+void enviaComando(String concatena){
   pegaDadosRelogio();
       String envia;
-      envia += "{\"t\":";
-      envia += printDigit(temperatura);
-      envia += ",\"h\":\"";
-      envia += printDigit(hora);
-      envia += ":";
-      envia += printDigit(minuto);
-      envia += "\",\"d\":\"";
-      envia += printDigit(dia);
-      envia += "/";
-      envia += printDigit(mes);
-      envia += "/";
-      envia += ano;
-      envia += "\",\"r1\":";
-      envia += readEEPROM(statusRele[0]);
-      envia += ",\"r2\":";
-      envia += readEEPROM(statusRele[1]);
-      envia += ",\"r3\":";
-      envia += readEEPROM(statusRele[2]);
-      envia += ",\"r4\":";
-      envia += readEEPROM(statusRele[3]);
-      if (concatena == true) {
-          envia += ",\"a1\":";
-          envia += String(readEEPROM(alarmeEEPROM1));
-          envia += ",\"a2\":";
-          envia += String(readEEPROM(alarmeEEPROM2));
-          envia += ",\"a3\":";
-          envia += String(readEEPROM(alarmeEEPROM3));
-          envia += ",\"a4\":";
-          envia += String(readEEPROM(alarmeEEPROM4));
-
-          envia += ",\"h1\":\"";
-          envia += printDigit(readEEPROM(HoraEEPROM_1A));
-          envia += ":";
-          envia += printDigit(readEEPROM(MinutoEEPROM_1A));
-          envia += "\",\"l1\":\"";
-          envia += printDigit(readEEPROM(HoraEEPROM_1D));
-          envia += ":";
-          envia += printDigit(readEEPROM(MinutoEEPROM_1D));
-          envia += "\",\"h2\":\"";
-
-          envia += printDigit(readEEPROM(HoraEEPROM_2A));
-          envia += ":";
-          envia += printDigit(readEEPROM(MinutoEEPROM_2A));
-          envia += "\",\"l2\":\"";
-          envia += printDigit(readEEPROM(HoraEEPROM_2D));
-          envia += ":";
-          envia += printDigit(readEEPROM(MinutoEEPROM_2D));
-          envia += "\",\"h3\":\"";
-
-          envia += printDigit(readEEPROM(HoraEEPROM_3A));
-          envia += ":";
-          envia += printDigit(readEEPROM(MinutoEEPROM_3A));
-          envia += "\",\"l3\":\"";
-          envia += printDigit(readEEPROM(HoraEEPROM_3D));
-          envia += ":";
-          envia += printDigit(readEEPROM(MinutoEEPROM_3D));
-          envia += "\",\"h4\":\"";
-
-          envia += printDigit(readEEPROM(HoraEEPROM_4A));
-          envia += ":";
-          envia += printDigit(readEEPROM(MinutoEEPROM_4A));
-          envia += "\",\"l4\":\"";
-          envia += printDigit(readEEPROM(HoraEEPROM_4D));
-          envia += ":";
-          envia += printDigit(readEEPROM(MinutoEEPROM_4D));
-          
-          envia += "\",\"w1\":\"";
-          for(int i=0; i<7; i++){
-            envia += readEEPROM(diaSemanaA1[i]);
-          }
-          envia += "\",\"w2\":\"";
-          for(int i=0; i<7; i++){
-            envia += readEEPROM(diaSemanaA2[i]);
-          }
-          envia += "\",\"w3\":\"";
-          for(int i=0; i<7; i++){
-            envia += readEEPROM(diaSemanaA3[i]);
-          }
-          envia += "\",\"w4\":\"";
-          for(int i=0; i<7; i++){
-            envia += readEEPROM(diaSemanaA4[i]);
-          }
-          envia += "\"}";
-          concatena =false;
-      }else{
+      if(concatena == "data"){
+        envia += "{\"t\":";
+        envia += printDigit(temperatura);
+        envia += ",\"h\":\"";
+        envia += printDigit(hora);
+        envia += ":";
+        envia += printDigit(minuto);
+        envia += "\",\"d\":\"";
+        envia += printDigit(dia);
+        envia += "/";
+        envia += printDigit(mes);
+        envia += "/";
+        envia += ano;
+        envia += "\"}";
+      }
+      if(concatena == "stRl"){
+        envia += "{";
+        envia += "r1\":";
+        envia += readEEPROM(statusRele[0]);
+        envia += ",\"r2\":";
+        envia += readEEPROM(statusRele[1]);
+        envia += ",\"r3\":";
+        envia += readEEPROM(statusRele[2]);
+        envia += ",\"r4\":";
+        envia += readEEPROM(statusRele[3]);
         envia += "}";
       }
+      if(concatena == "stAs") {
+        envia += "{\"a1\":";
+        envia += String(readEEPROM(alarmeEEPROM1));
+        envia += ",\"a2\":";
+        envia += String(readEEPROM(alarmeEEPROM2));
+        envia += ",\"a3\":";
+        envia += String(readEEPROM(alarmeEEPROM3));
+        envia += ",\"a4\":";
+        envia += String(readEEPROM(alarmeEEPROM4));
+        envia += "}";
+      }
+      if(concatena == "stA1") {
+        envia += ",\"h1\":\"";
+        envia += printDigit(readEEPROM(HoraEEPROM_1A));
+        envia += ":";
+        envia += printDigit(readEEPROM(MinutoEEPROM_1A));
+        envia += "\",\"l1\":\"";
+        envia += printDigit(readEEPROM(HoraEEPROM_1D));
+        envia += ":";
+        envia += printDigit(readEEPROM(MinutoEEPROM_1D));
+        envia += "\"}";
+      }
+      if(concatena == "stA2") {
+        envia += "{\"h2\":\"";
+        envia += printDigit(readEEPROM(HoraEEPROM_2A));
+        envia += ":";
+        envia += printDigit(readEEPROM(MinutoEEPROM_2A));
+        envia += "\",\"l2\":\"";
+        envia += printDigit(readEEPROM(HoraEEPROM_2D));
+        envia += ":";
+        envia += printDigit(readEEPROM(MinutoEEPROM_2D));
+        envia += "\"}";
+      }
+      if(concatena == "stA3") {
+        envia += "{\"h3\":\"";
+        envia += printDigit(readEEPROM(HoraEEPROM_3A));
+        envia += ":";
+        envia += printDigit(readEEPROM(MinutoEEPROM_3A));
+        envia += "\",\"l3\":\"";
+        envia += printDigit(readEEPROM(HoraEEPROM_3D));
+        envia += ":";
+        envia += printDigit(readEEPROM(MinutoEEPROM_3D));
+        envia += "\"}";
+      }
+      if(concatena == "stA4") {
+        envia += "{\"h4\":\"";
+        envia += printDigit(readEEPROM(HoraEEPROM_4A));
+        envia += ":";
+        envia += printDigit(readEEPROM(MinutoEEPROM_4A));
+        envia += "\",\"l4\":\"";
+        envia += printDigit(readEEPROM(HoraEEPROM_4D));
+        envia += ":";
+        envia += printDigit(readEEPROM(MinutoEEPROM_4D));
+        envia += "\"}";
+      }
+      if(concatena == "week") {
+        envia += "{\"w1\":\"";
+        for(int i=0; i<7; i++){
+          envia += readEEPROM(diaSemanaA1[i]);
+        }
+        envia += "\",\"w2\":\"";
+        for(int i=0; i<7; i++){
+          envia += readEEPROM(diaSemanaA2[i]);
+        }
+        envia += "\",\"w3\":\"";
+        for(int i=0; i<7; i++){
+          envia += readEEPROM(diaSemanaA3[i]);
+        }
+        envia += "\",\"w4\":\"";
+        for(int i=0; i<7; i++){
+          envia += readEEPROM(diaSemanaA4[i]);
+        }
+        envia += "\"}";
+      }
+      concatena ="";
       bluetooth.println(envia);
       Serial.println(envia);
       envia = "";
@@ -380,39 +395,29 @@ void loop() {
   pegaDadosRelogio();
   if (Serial.available() > 0 || bluetooth.available() > 0) {
     String Comando = concatena();
-    //String entrada = valorJson(Comando, "ent");
     String entrada;
-    String print;
     if(Comando.indexOf('{') >= 0 && Comando.indexOf('}')>=0){
-      if(Comando.substring(0, 7) != ultimoTempo){
-        int inicio = Comando.indexOf('{');
-        int fim = Comando.indexOf('}')+1;
-        print = Comando.substring(inicio, fim);
-        ultimoTempo = Comando.substring(0, 7);
-        if(ultimoCmd != print){
-          ultimoCmd = print;
-          entrada = valorJson(print, "ent");
-        }
-      }
+      entrada = valorJson(Comando, "ent");
     }
 
     if (entrada == "st") { //{"ent":"st","a":1,"s":1}
       int valrele = valorJson(Comando, "a").toInt();
       int valStatus = valorJson(Comando, "s").toInt();
       writeEEPROM(valrele-1, valStatus);
-      enviaComando(true);
+      enviaComando("stRl");
     }
     if (entrada == "dd") { //{"ent":"dd"}
-      enviaComando(true);
+      enviaComando("data");
+      enviaComando("stRl");
     }
-    if (entrada == "hr") { //{"ent":"hr","h":1695105003}
+    if (entrada == "hr") { //{"ent":"hr","h":1716050337}
       uint32_t epoch = valorJson(Comando, "h").toInt();
       rtc.adjust(DateTime(epoch));
-      enviaComando(false);
+      enviaComando("data");
     }
     if (entrada == "dt") { //{"ent":"dt","h":3,"m":31,"s":0,"d":17,"M":8,"a":2023}
       rtc.adjust(DateTime(valorJson(Comando, "a").toInt(), valorJson(Comando, "m").toInt(), valorJson(Comando, "d").toInt(), valorJson(Comando, "h").toInt(), valorJson(Comando, "M").toInt(), valorJson(Comando, "a").toInt()));
-      enviaComando(false);
+      enviaComando("data");
     }
     if (entrada == "al") { //{"ent":"al","r":1,"ha":21,"ma":15,"hd":22,"md":15}
       int horaAtiva = valorJson(Comando, "ha").toInt();
@@ -420,35 +425,41 @@ void loop() {
       int horaDesativa = valorJson(Comando, "hd").toInt();
       int minutoDesativa = valorJson(Comando, "md").toInt();
       int relval = valorJson(Comando, "r").toInt();
+      enviaComando("stRl");
       switch (relval) {
         case 1:
           writeEEPROM(HoraEEPROM_1A, horaAtiva);
           writeEEPROM(MinutoEEPROM_1A, minutoAtiva);
           writeEEPROM(HoraEEPROM_1D, horaDesativa);
           writeEEPROM(MinutoEEPROM_1D, minutoDesativa);
+          enviaComando("stA1");
         break;
         case 2:
           writeEEPROM(HoraEEPROM_2A, horaAtiva);
           writeEEPROM(MinutoEEPROM_2A, minutoAtiva);
           writeEEPROM(HoraEEPROM_2D, horaDesativa);
           writeEEPROM(MinutoEEPROM_2D, minutoDesativa);
+          enviaComando("stA2");
         break;
         case 3:
           writeEEPROM(HoraEEPROM_3A, horaAtiva);
           writeEEPROM(MinutoEEPROM_3A, minutoAtiva);
           writeEEPROM(HoraEEPROM_3D, horaDesativa);
           writeEEPROM(MinutoEEPROM_3D, minutoDesativa);
+          enviaComando("stA3");
         break;
         case 4:
           writeEEPROM(HoraEEPROM_4A, horaAtiva);
           writeEEPROM(MinutoEEPROM_4A, minutoAtiva);
           writeEEPROM(HoraEEPROM_4D, horaDesativa);
           writeEEPROM(MinutoEEPROM_4D, minutoDesativa);
+          enviaComando("stA4");
         break;
       }
     }
     if (entrada == "di") { //{"ent":"di","r":2,"s":1}
-        alteraRele(valorJson(Comando, "r").toInt(), valorJson(Comando, "s").toInt());
+      alteraRele(valorJson(Comando, "r").toInt(), valorJson(Comando, "s").toInt());
+      enviaComando("stRl");
     }
     if (entrada == "wk") { //{"ent":"wk","a":1,"d":"1000001"}
       String diasAlarme = valorJson(Comando, "d");
@@ -470,6 +481,7 @@ void loop() {
         break;
         }
       }
+      enviaComando("week");
     }
     if (entrada == "rs") { //{"ent":"rs"}
       novaPlaca();
@@ -495,7 +507,8 @@ void loop() {
     alarmar(pinRele3, s3a, s3d);
     alarmar(pinRele4, s4a, s4d);
 
-    enviaComando(false);
+    enviaComando("data");
+    enviaComando("stRl");
     novominuto = minuto;
   }
 }
