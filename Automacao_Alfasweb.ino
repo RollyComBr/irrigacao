@@ -100,14 +100,6 @@ byte readEEPROM(unsigned int eeaddress) {
   if (Wire.available()) rdata = Wire.read();
   return rdata;
 }
-//Declara as portas do Time e inicializa o RTC
-void enviaDadosHora(uint32_t epoch) {
-  epoch= epoch-10800;
-  rtc.adjust(DateTime(epoch));
-}
-void enviaDadosHora(byte e_hora, byte e_minuto, byte e_segundo, byte e_dia, byte e_mes, byte e_ano){
-  rtc.adjust(DateTime(e_ano, e_mes, e_dia, e_hora, e_minuto, e_segundo));
-}
 //Funções para ativação dos Reles
 void alteraRele(int pinRele, int estado) {
   pinRele = pinRele-1;
@@ -410,8 +402,10 @@ void loop() {
       enviaComando("data");
       enviaComando("stRl");
     }
-    if (entrada == "hr") { //{"ent":"hr","h":1716050337}
+    if (entrada == "hr") { //{"ent":"hr","gmt":"-3","h":1716050337}
       uint32_t epoch = valorJson(Comando, "h").toInt();
+      int gmt = valorJson(Comando, "gmt").toInt()*3600;
+      epoch= epoch+(gmt);
       rtc.adjust(DateTime(epoch));
       enviaComando("data");
     }
@@ -463,22 +457,24 @@ void loop() {
     }
     if (entrada == "wk") { //{"ent":"wk","a":1,"d":"1000001"}
       String diasAlarme = valorJson(Comando, "d");
-      for(int i=0; i<7; i++){
-        char valDias = diasAlarme[i];
-        int someInt = valDias - '0';
-        switch (valorJson(Comando, "a").toInt()) {
-        case 1:
-          writeEEPROM(diaSemanaA1[i], someInt);
-        break;
-        case 2:
-          writeEEPROM(diaSemanaA2[i], someInt);
-        break;
-        case 3:
-          writeEEPROM(diaSemanaA3[i], someInt);
-        break;
-        case 4:
-          writeEEPROM(diaSemanaA4[i], someInt);
-        break;
+      if(diasAlarme != ""){
+        for(int i=0; i<7; i++){
+          char valDias = diasAlarme[i];
+          int someInt = valDias - '0';
+          switch (valorJson(Comando, "a").toInt()) {
+          case 1:
+            writeEEPROM(diaSemanaA1[i], someInt);
+          break;
+          case 2:
+            writeEEPROM(diaSemanaA2[i], someInt);
+          break;
+          case 3:
+            writeEEPROM(diaSemanaA3[i], someInt);
+          break;
+          case 4:
+            writeEEPROM(diaSemanaA4[i], someInt);
+          break;
+          }
         }
       }
       enviaComando("week");
