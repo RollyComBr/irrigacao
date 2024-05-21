@@ -169,7 +169,7 @@ void enviaComando(String concatena){
       }
       if(concatena == "stRl"){
         envia += "{";
-        envia += "r1\":";
+        envia += "\"r1\":";
         envia += readEEPROM(statusRele[0]);
         envia += ",\"r2\":";
         envia += readEEPROM(statusRele[1]);
@@ -391,98 +391,99 @@ void loop() {
     if(Comando.indexOf('{') >= 0 && Comando.indexOf('}')>=0){
       entrada = valorJson(Comando, "ent");
     }
-
-    if (entrada == "st") { //{"ent":"st","a":1,"s":1}
-      int valrele = valorJson(Comando, "a").toInt();
-      int valStatus = valorJson(Comando, "s").toInt();
-      writeEEPROM(valrele-1, valStatus);
-      enviaComando("stRl");
-    }
-    if (entrada == "dd") { //{"ent":"dd"}
-      enviaComando("data");
-      enviaComando("stRl");
-    }
-    if (entrada == "hr") { //{"ent":"hr","gmt":"-3","h":1716050337}
-      uint32_t epoch = valorJson(Comando, "h").toInt();
-      int gmt = valorJson(Comando, "gmt").toInt()*3600;
-      epoch= epoch+(gmt);
-      rtc.adjust(DateTime(epoch));
-      enviaComando("data");
-    }
-    if (entrada == "dt") { //{"ent":"dt","h":3,"m":31,"s":0,"d":17,"M":8,"a":2023}
-      rtc.adjust(DateTime(valorJson(Comando, "a").toInt(), valorJson(Comando, "m").toInt(), valorJson(Comando, "d").toInt(), valorJson(Comando, "h").toInt(), valorJson(Comando, "M").toInt(), valorJson(Comando, "a").toInt()));
-      enviaComando("data");
-    }
-    if (entrada == "al") { //{"ent":"al","r":1,"ha":21,"ma":15,"hd":22,"md":15}
-      int horaAtiva = valorJson(Comando, "ha").toInt();
-      int minutoAtiva = valorJson(Comando, "ma").toInt();
-      int horaDesativa = valorJson(Comando, "hd").toInt();
-      int minutoDesativa = valorJson(Comando, "md").toInt();
-      int relval = valorJson(Comando, "r").toInt();
-      enviaComando("stRl");
-      switch (relval) {
-        case 1:
-          writeEEPROM(HoraEEPROM_1A, horaAtiva);
-          writeEEPROM(MinutoEEPROM_1A, minutoAtiva);
-          writeEEPROM(HoraEEPROM_1D, horaDesativa);
-          writeEEPROM(MinutoEEPROM_1D, minutoDesativa);
-          enviaComando("stA1");
-        break;
-        case 2:
-          writeEEPROM(HoraEEPROM_2A, horaAtiva);
-          writeEEPROM(MinutoEEPROM_2A, minutoAtiva);
-          writeEEPROM(HoraEEPROM_2D, horaDesativa);
-          writeEEPROM(MinutoEEPROM_2D, minutoDesativa);
-          enviaComando("stA2");
-        break;
-        case 3:
-          writeEEPROM(HoraEEPROM_3A, horaAtiva);
-          writeEEPROM(MinutoEEPROM_3A, minutoAtiva);
-          writeEEPROM(HoraEEPROM_3D, horaDesativa);
-          writeEEPROM(MinutoEEPROM_3D, minutoDesativa);
-          enviaComando("stA3");
-        break;
-        case 4:
-          writeEEPROM(HoraEEPROM_4A, horaAtiva);
-          writeEEPROM(MinutoEEPROM_4A, minutoAtiva);
-          writeEEPROM(HoraEEPROM_4D, horaDesativa);
-          writeEEPROM(MinutoEEPROM_4D, minutoDesativa);
-          enviaComando("stA4");
-        break;
+    if(entrada != ""){ //Se entrada for igual
+      if (entrada == "st") { //{"ent":"st","a":1,"s":1}
+        int valrele = valorJson(Comando, "a").toInt();
+        int valStatus = valorJson(Comando, "s").toInt();
+        writeEEPROM(valrele-1, valStatus);
+        enviaComando("stRl");
       }
-    }
-    if (entrada == "di") { //{"ent":"di","r":2,"s":1}
-      alteraRele(valorJson(Comando, "r").toInt(), valorJson(Comando, "s").toInt());
-      enviaComando("stRl");
-    }
-    if (entrada == "wk") { //{"ent":"wk","a":1,"d":"1000001"}
-      String diasAlarme = valorJson(Comando, "d");
-      if(diasAlarme != ""){
-        for(int i=0; i<7; i++){
-          char valDias = diasAlarme[i];
-          int someInt = valDias - '0';
-          switch (valorJson(Comando, "a").toInt()) {
+      if (entrada == "dd") { //{"ent":"dd"}
+        enviaComando("data");
+        enviaComando("stRl");
+      }
+      if (entrada == "hr") { //{"ent":"hr","gmt":"-3","h":1716050337}
+        uint32_t epoch = valorJson(Comando, "h").toInt();
+        int gmt = valorJson(Comando, "gmt").toInt()*3600;
+        epoch= epoch+(gmt);
+        rtc.adjust(DateTime(epoch));
+        enviaComando("data");
+      }
+      if (entrada == "dt") { //{"ent":"dt","h":3,"m":31,"s":0,"d":17,"M":8,"a":2023}
+        rtc.adjust(DateTime(valorJson(Comando, "a").toInt(), valorJson(Comando, "m").toInt(), valorJson(Comando, "d").toInt(), valorJson(Comando, "h").toInt(), valorJson(Comando, "M").toInt(), valorJson(Comando, "a").toInt()));
+        enviaComando("data");
+      }
+      if (entrada == "al") { //{"ent":"al","r":1,"ha":21,"ma":15,"hd":22,"md":15}
+        int horaAtiva = valorJson(Comando, "ha").toInt();
+        int minutoAtiva = valorJson(Comando, "ma").toInt();
+        int horaDesativa = valorJson(Comando, "hd").toInt();
+        int minutoDesativa = valorJson(Comando, "md").toInt();
+        int relval = valorJson(Comando, "r").toInt();
+        enviaComando("stRl");
+        switch (relval) {
           case 1:
-            writeEEPROM(diaSemanaA1[i], someInt);
+            writeEEPROM(HoraEEPROM_1A, horaAtiva);
+            writeEEPROM(MinutoEEPROM_1A, minutoAtiva);
+            writeEEPROM(HoraEEPROM_1D, horaDesativa);
+            writeEEPROM(MinutoEEPROM_1D, minutoDesativa);
+            enviaComando("stA1");
           break;
           case 2:
-            writeEEPROM(diaSemanaA2[i], someInt);
+            writeEEPROM(HoraEEPROM_2A, horaAtiva);
+            writeEEPROM(MinutoEEPROM_2A, minutoAtiva);
+            writeEEPROM(HoraEEPROM_2D, horaDesativa);
+            writeEEPROM(MinutoEEPROM_2D, minutoDesativa);
+            enviaComando("stA2");
           break;
           case 3:
-            writeEEPROM(diaSemanaA3[i], someInt);
+            writeEEPROM(HoraEEPROM_3A, horaAtiva);
+            writeEEPROM(MinutoEEPROM_3A, minutoAtiva);
+            writeEEPROM(HoraEEPROM_3D, horaDesativa);
+            writeEEPROM(MinutoEEPROM_3D, minutoDesativa);
+            enviaComando("stA3");
           break;
           case 4:
-            writeEEPROM(diaSemanaA4[i], someInt);
+            writeEEPROM(HoraEEPROM_4A, horaAtiva);
+            writeEEPROM(MinutoEEPROM_4A, minutoAtiva);
+            writeEEPROM(HoraEEPROM_4D, horaDesativa);
+            writeEEPROM(MinutoEEPROM_4D, minutoDesativa);
+            enviaComando("stA4");
           break;
-          }
         }
       }
-      enviaComando("week");
-    }
-    if (entrada == "rs") { //{"ent":"rs"}
-      novaPlaca();
-      delay(1000);
-      resetFunc();
+      if (entrada == "di") { //{"ent":"di","r":2,"s":1}
+        alteraRele(valorJson(Comando, "r").toInt(), valorJson(Comando, "s").toInt());
+        enviaComando("stRl");
+      }
+      if (entrada == "wk") { //{"ent":"wk","a":1,"d":"1000001"}
+        String diasAlarme = valorJson(Comando, "d");
+        if(diasAlarme != ""){
+          for(int i=0; i<7; i++){
+            char valDias = diasAlarme[i];
+            int someInt = valDias - '0';
+            switch (valorJson(Comando, "a").toInt()) {
+            case 1:
+              writeEEPROM(diaSemanaA1[i], someInt);
+            break;
+            case 2:
+              writeEEPROM(diaSemanaA2[i], someInt);
+            break;
+            case 3:
+              writeEEPROM(diaSemanaA3[i], someInt);
+            break;
+            case 4:
+              writeEEPROM(diaSemanaA4[i], someInt);
+            break;
+            }
+          }
+        }
+        enviaComando("week");
+      }
+      if (entrada == "rs") { //{"ent":"rs"}
+        novaPlaca();
+        delay(1000);
+        resetFunc();
+      }
     }
   }
   if (novominuto != minuto) {
