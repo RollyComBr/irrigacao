@@ -7,59 +7,66 @@ p:distMinAnt=21
 p:distMaxAnt=75
 p:percLigaAnt=60
 p:chkAutoAnt=1
-distIdeal=0
 var=1
-p:distAnt=0
-p:dist=0
+distAnt=0
+dist=0
 quant=0
-p:perc=0
+perc=0
 status=0
 statusAnt=0
-margem=10
 
-
->T
-dist=SR04#Distance
-if (distAnt==0 or ((dist<distAnt+var) and (dist>distAnt-var))) {
-  distAnt=(dist+distAnt)/2
-  perc=(1-((distAnt-distMin)/(distMax-distMin)))*100
-  quant=0
-} else {
-  quant=quant+1
-}
-if quant>=10 {
-  distAnt=dist
-  quant=0
-}
-
-if(chkAuto==1){
-if(dist<=distMax+margem && dist>=distMin-margem){
- if (perc<=percLiga) {
-  status=1
- }
- if (status==1) {
-  if(pwr[1]==0){
-   =>power1 1
-  }
-  if(perc>=100){
+>S
+if(upsecs&60==0){
+ if(perc<=0 or perc>=100){
+  if(pwr[1]==1){
    status=0
    =>power1 0
   }
  }
 }
+
+>T
+dist=SR04#Distance
+if(distAnt==0 or ((dist<distAnt+var) and (dist>distAnt-var))){
+ distAnt=(dist+distAnt)/2
+ perc=(1-((distAnt-distMin)/(distMax-distMin)))*100
+ quant=0
+}else{
+ quant=quant+1
 }
->E
-if(distMaxAnt!=distMax || distMinAnt!=DistMin || percLigaAnt!=percLiga || chkAutoAnt!=chkAuto || statusAnt!=status){
+if quant>=10 {
+ distAnt=dist
+ quant=0
+}
+
+if(chkAuto==1){
+ if(dist<=distMax and dist>=distMin){
+  if(perc<=percLiga){
+   status=1
+  }else{
+   if(perc<=0 or perc>=100){
+    status=0
+   }
+  }
+  if(status==1){
+   if(pwr[1]==0){
+    =>power1 1
+   }
+  }else{
+   if(pwr[1]==1){
+    =>power1 0
+   }
+  }
+ }
+}
+>E 
+if(distMaxAnt!=distMax or distMinAnt!=DistMin or percLigaAnt!=percLiga or chkAutoAnt!=chkAuto or statusAnt!=status){
  distMaxAnt=distMax
  distMinAnt=DistMin
  percLigaAnt=percLiga
  chkAutoAnt=chkAuto
  statusAnt=status
  =>teleperiod
-}
-if(pwr[1]==0){
-  status=0
-  =>teleperiod
 }
 
 >W
@@ -69,5 +76,6 @@ nm(20 150 5 distMax "Distância Máxima %0distMax%: " 70 0)
 nm(0 100 5 percLiga "Percentual para Ligar %0percLiga%: " 70 0)
 Distância de cálculo{m}%0distAnt% cm
 Percentual de água{m}%0perc% %%
+Data:{m}%0day%/%0month%/%0year%
 >J
 ,"Distancia":%0distAnt%,"Porcent":%0perc%,"ChkAuto":%0chkAuto%,"DistMax":%0distMax%,"DistMin":%0distMin%,"PercLiga":%0percLiga%,"Status":%0status%
